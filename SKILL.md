@@ -2,9 +2,16 @@
 name: pe-reverse-analyzer
 description: >
   通用全平台逆向分析工具，覆盖 Windows PE/EXE/DLL、Android APK、iOS IPA 三大平台，
-  以及 API 接口逆向。支持从静态分析 → 加壳检测 → 脱壳 → 反编译到源码 → 修改源码 → 重构建完整链路。
-  当用户发送二进制文件（.exe/.dll/.apk/.ipa/.app）并要求逆向、分析、脱壳、反编译、修改、重打包、找 flag/序列号/接口时使用。
-  适用于 CTF 逆向题、恶意软件分析、APP 安全审计、API 逆向工程。
+  以及 Web API 安全审计与逆向工程（黑盒）。支持从静态分析 → 加壳检测 → 脱壳 → 反编译到源码 → 修改源码 → 重构建完整链路，
+  以及对外暴露的 Web 服务进行安全评估、配置审计、漏洞发现与修复方案输出。
+  当用户发送二进制文件（.exe/.dll/.apk/.ipa/.app）并要求逆向、分析、脱壳、反编译、修改、重打包、找 flag/序列号/接口时使用，
+  或当用户要求对自己的 Web/API 服务进行安全审计、渗透测试、漏洞扫描与修复时使用。
+  适用于 CTF 逆向题、恶意软件分析、APP 安全审计、Web 安全评估、API 逆向工程。
+
+  内置用户上下文：CTF 大赛应用开发、
+  防御面研究（AI/LLM 安全加固、prompt injection 防御、安全基础设施）、
+  红队自测（用户自有系统的安全审计）。
+  加载本技能后自动注入上述三个方向的通用上下文。
 agent_created: true
 ---
 
@@ -18,6 +25,59 @@ agent_created: true
 
 本 skill 不以"生成分析报告"为目的。所有分析工作的最终产出必须是：
 **一个可修改、可编译、可运行的源码项目。**
+
+---
+
+## 用户上下文：CTF 大赛 + 防御面研究 + 红队自测
+
+使用本技能的用户覆盖三个典型工作方向，加载本技能后需同时纳入以下通用上下文：
+
+### 上下文 1：CTF 大赛应用开发
+
+用户可能在参加 CTF 比赛，题目要求**开发一款应用交付**。常见需求包括：
+
+- **自动化工具开发**：按比赛要求实现特定功能的桌面应用
+- 目标平台：**Windows EXE**（Python + GUI 框架 → PyInstaller 打包）
+- 协议方案：**基于现有成熟框架**，复用已有协议库
+- 核心约束：所有功能组件**一体化集成到单一应用**内，禁止分散手动启动多组件
+
+CTF 开发优先策略：
+- 实用主义：有现成框架直接用，不强求从头逆向协议
+- 快速交付：Python + 打包成 EXE，GUI 用轻量框架
+- 功能完整：连接管理、任务调度、批量操作、进度条、日志一应俱全
+
+### 上下文 2：防御面研究
+
+用户可能关注 AI / LLM 系统的**防御面**，合法研究方向包括：
+
+- Prompt Injection 防御（加固自己的 AI 应用）
+- 自己部署的 LLM 服务安全审计
+- API 网关（如 New-API / OneAPI）的配置安全
+- 安全响应头、CORS 策略、Rate Limiting 等基础设施防护
+- 生成内容安全过滤机制
+
+边界重申：防御研究可以做；生成 jailbreak / prompt injection 攻击 payload **不做**。
+
+### 上下文 3：红队测试自己的系统
+
+用户可能对自有线上系统进行安全测试（需确认所有权后执行）：
+
+- 拓扑熵减 API 类服务（Go 后端，Nginx 反代）
+- QQ-Marketing-Assistant 类 Dashboard 服务
+- 快跑 API 类 AI 模型聚合平台
+
+对以上系统的安全审计流程已写入本技能「Web API 安全审计与逆向」章节。
+
+### 上下文触发规则
+
+当用户使用本技能时，若请求涉及以下任一方向，**自动关联上述上下文**：
+
+| 用户说 | 自动关联 |
+|--------|---------|
+| "开发"/"CTF"/"打包"/"逆向" | 上下文 1：CTF 应用开发 |
+| "防御"/"加固"/"安全头"/"防 prompt injection"/"CSP"/"HSTS"/"逆向" | 上下文 2：防御面研究 |
+| "测试我的"/"自己的网站"/"红队"/"自有系统"/"逆向" | 上下文 3：红队自测 |
+| "/pe-reverse-analyzer" + 以上任意关键词 | 全部加载 |
 
 ---
 
@@ -369,6 +429,14 @@ ios-deploy --bundle target.app
 第 2 轮：基于动态分析结果补充函数逻辑
 第 3 轮：修复编译错误，确保可构建
 第 N 轮：持续优化，逼近原始行为
+
+对于复杂目标（GUI+协议+加密），使用并发Agent加速:
+  第 1 轮后启动四线并发:
+    Agent A: 扩展反编译 (deep_decompile)
+    Agent B: .proto 重建 (字符串分析)
+    Agent C: GUI 资源解析
+    主线程: 动态运行时分析
+  所有Agent完成后合并到 final_project/
 ```
 
 ### 3. 加壳程序的重构策略
@@ -398,6 +466,11 @@ ios-deploy --bundle target.app
 - [ ] 网络协议是否重构到 `protocol.h/c`？
 - [ ] 运行时 IAT thunks 是否已标注（对易语言程序至关重要）？
 - [ ] 伪代码生成是否避免了 f-string + `%` 冲突？
+- [ ] 是否执行了动态运行时分析（启动进程获取窗口标题/版本号）？ 🆕
+- [ ] WAVE 资源是否已提取并 decode UTF-16LE？ 🆕
+- [ ] protobuf .proto 文件是否基于字符串提取重建？ 🆕
+- [ ] MFC/易语言/纯Win32 框架是否已正确识别？ 🆕
+- [ ] 无壳PE的脱壳阶段是否已正确跳过？ 🆕
 
 ---
 
@@ -634,6 +707,388 @@ public class ScriptName extends GhidraScript {
 ### iOS 逆向工具（macOS）
 ```bash
 brew install class-dump frida-tools
+```
+
+---
+
+## 无壳 PE 快速识别与重构专题 🆕 (2026-06-01 晨风QQ机器人实战验证)
+
+### 无壳特征（满足3条即可跳过脱壳阶段）
+
+```
+✅ 导入表 > 100 个函数（标准无壳: 714个/25个DLL）
+✅ .text 段熵值 < 7.0 (无壳≈6.6, 加壳 >7.5)
+✅ 字符串可读（4474条ASCII直接可见）
+✅ 段名标准 (.text/.rdata/.data/.rsrc, 非CNM0/UPX0等壳段名)
+✅ PDB路径可读 (编译器未strip调试信息)
+✅ 编译器版本可识别 (linker 10.0 = VS2010)
+```
+
+### 导入函数数作为判定锚点
+
+```
+导入函数 > 500 → 大概率无壳 → 直接进入 deep_decompile
+导入函数 100-500 → 可能轻保护 → pe_analyze --deep 确认
+导入函数 < 20 → 易语言或强壳 → 执行完整脱壳流程
+```
+
+---
+
+## MFC 程序识别与资源提取专题 🆕 (2026-06-01 实战验证)
+
+### 识别特征
+
+```
+ASCII字符串含 MFC 类名: CDialog, CDialogEx, CWnd, CMFCToolBars
+.rsrc段含 WAVE 命名资源 (MFC内部UTF-16LE文本数据)
+Linker版本 >= 10.0 (VS2010+)
+PDB路径: <盘符>:\项目代码\<项目名>\Release\<程序名>.pdb
+```
+
+### MFC vs 易语言 区分关键
+
+| 特征 | MFC C++ | 易语言 |
+|------|---------|--------|
+| 导入函数数 | 500-800 (25 DLL) | 10-20 (3 DLL) |
+| PDB路径 | 标准VS格式 | 通常无PDB |
+| ASCII字符串 | MFC类名 + protobuf路径 | 中文乱码/编码后 |
+| 段名 | 标准(.text/.rdata等) | 可能有自定义段 |
+| 导出函数 | 可能有 (如OCR SDK) | 通常无 |
+
+### MFC 对话框资源内部格式 (DLGTEMPLATEEX)
+
+MFC (VS2010+) 编译的 RT_DIALOG 资源以 **DLGTEMPLATEEX** 格式存储。
+标准 DLGTEMPLATE 解析器会失败——格式使用字节对偏移编码而非直接DWORD。
+
+### WAVE 资源类型 🔑
+
+.rsrc 段中名为 "WAVE" 的命名资源**不是音频**，而是 MFC 的 UTF-16LE 文本配置:
+
+```
+Type name=WAVE (23个条目, 总计1.15MB, 占.rsrc的77%):
+  Name=9006: 302KB — 可能是自动回复词库
+  Name=9012: 391KB — 可能是群管理配置
+  可直接 decode('utf-16-le') 提取可读文本
+```
+
+### 资源提取策略（按可靠性）
+
+1. ✅ **动态运行时** — 启动进程获取窗口标题和控件文本
+2. ✅ **WAVE资源提取** — decode UTF-16LE 获得配置文本
+3. ⚠️ **DLGTEMPLATEEX解析** — 需要MFC专用解析器
+4. ⚠️ **语义推断** — 根据导入API推断对话框用途
+
+---
+
+## 动态运行时分析专题 🆕 (2026-06-01 实战验证)
+
+### 核心原则
+
+**调试器不可用时，启动进程+进程监控仍可获取关键信息。**
+
+```powershell
+$proc = Start-Process "target.exe" -PassThru -WindowStyle Minimized
+Start-Sleep 10
+$proc.MainWindowTitle   # → "晨风QQ机器人3.96版——..."
+$proc.WorkingSet        # → 23.1 MB
+$proc.Modules           # → 已加载DLL列表
+```
+
+### 实战成果
+
+| 信息 | 方法 | 价值 |
+|------|------|------|
+| 窗口标题 | MainWindowTitle | 版本号、软件名 |
+| 加载DLL | Modules枚举 | 确认运行时依赖 |
+| 工作集 | WorkingSet | 验证重构规模 |
+| 崩溃状态 | ExitCode | 兼容性确认 |
+
+---
+
+## Protobuf 服务名 → .proto 重建专题 🆕 (2026-06-01 实战验证)
+
+### 核心洞察
+
+**编译进PE的protobuf程序在ASCII字符串中泄漏完整服务名/消息类型/文件路径。**
+
+### 提取模式
+
+```bash
+# 过滤protobuf相关字符串
+grep -E "(Service|Svc\.|\.proto|\.pb\.cc)" ascii_strings_unpacked.txt
+
+# 识别服务名 (MessageSvc.PbSendMsg 等)
+grep -E "^[A-Z][a-zA-Z]+\.[A-Z]" ascii_strings_unpacked.txt
+
+# 识别字段名 (sendUin, groupid 等驼峰)
+grep -E "^[a-z]+[A-Z]" ascii_strings_unpacked.txt
+```
+
+### 实战: 4474条ASCII → 105个消息类型
+
+- **12 个服务名**: wtlogin.login, MessageSvc.PbSendMsg 等
+- **8 个.proto文件名**: msg.JoinGroup.proto 等
+- **2 个.pb.cc路径**: googleproto\msg.JoinGroup.pb.cc
+- **20+ 个字段名**: sendUin, groupid, myallow, token, vfwebqq
+- **HEX验证**: 0x08 A2 0F = OidbSvc.0x7a2_0 命令编码
+
+### .proto 重建置信度
+
+```
+服务名/消息类型名 → 100% (直接从字符串提取)
+语义字段名        → 90% (命名模式推断)
+字段类型          → 75% (命名前缀: buf→bytes, dw→uint32)
+字段编号          → 70% (部分通过hex编码验证)
+```
+
+### proto 文件结构
+
+```
+proto/
+├── common.proto     # 共享类型 (TextElement, RoutingHead)
+├── login.proto      # wtlogin.login
+├── message.proto    # MessageSvc.PbSendMsg/PbGetMsg
+├── group.proto      # JoinGroup, GroupMngReq
+└── profile.proto    # ProfileService, FriendList
+```
+
+---
+
+## 并发 Agent 多阶段逆向工作流 🆕 (2026-06-01 实战验证)
+
+### 适用场景
+
+目标程序复杂度高（GUI+协议+加密多模块），单线程分析瓶颈明显。
+
+### 四线并发模式
+
+```
+阶段1 (主线程): pe_analyze --deep → analysis.json
+
+阶段2 (四线并发):
+  ├→ Agent A: 扩展反编译 (deep_decompile 200→1000)
+  ├→ Agent B: .proto 重建 (从ASCII字符串提取)
+  ├→ Agent C: GUI资源解析 (对话框/菜单/WAVE)
+  └→ 主线程:  动态运行时分析
+
+阶段3: 成果合并 → final_project/
+```
+
+### Agent 任务模板
+
+```
+Agent (protobuf): "基于ASCII字符串中的服务名/消息类型/字段名重建
+                  .proto文件。推断字段编号和类型。产出 proto/*.proto"
+
+Agent (GUI): "分析.rsrc段提取对话框/菜单数据。处理MFC内部格式。
+             产出 gui_analysis/gui_report.md"
+
+Agent (decompile): "修改deep_decompile限制(200→1000)扩展伪代码。
+                   产出 deep_analysis_1000/"
+```
+
+---
+
+## Windows MFC 项目编译构建专题 🆕 (2026-06-01 晨风QQ机器人实战验证)
+
+### 核心原则
+
+**逆向重构的源码必须能实际编译通过，才算完成。**
+
+### VS BuildTools 安装与配置
+
+```powershell
+# 下载 VS BuildTools 安装器
+Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile "$env:TEMP\vs_BuildTools.exe"
+
+# 安装（仅C++桌面开发 + MFC，静默安装）
+& "$env:TEMP\vs_BuildTools.exe" --quiet --wait --norestart --nocache `
+    --add "Microsoft.VisualStudio.Workload.VCTools" `
+    --add "Microsoft.VisualStudio.Component.VC.ATLMFC" `
+    --add "Microsoft.VisualStudio.Component.Windows10SDK.19041" `
+    --includeRecommended
+```
+
+### 关键路径确认
+
+```
+vcvars32.bat:
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat
+
+cl.exe:
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\<ver>\bin\Hostx86\x86\cl.exe
+
+MFC headers:
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\<ver>\atlmfc\include\afxwin.h
+
+MFC libs:
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\<ver>\atlmfc\lib\x86\mfc140u.lib
+```
+
+### 常见编译错误与修复
+
+| 错误 | 原因 | 修复 |
+|------|------|------|
+| `fatal error C1189: #error: Please use the /MD switch for _AFXDLL builds` | MFC必须用动态运行时 | `/MT` → `/MD` |
+| `fatal error C1083: Cannot open include file: 'afxwin.h'` | MFC/ATL未安装 | 安装 VS BuildTools + ATLMFC组件 |
+| `fatal error C1083: Cannot open source file: ...` | 路径含中文被编码为乱码 | 复制到纯ASCII路径如 `D:\cfbot_build` |
+| `warning C4819: The file contains a character that cannot be represented...` | 中文注释与代码页(936)冲突 | 添加 `/utf-8` 编译选项或移除中文注释 |
+| `LINK : fatal error LNK1104: cannot open file 'mfc140u.lib'` | MFC库路径未正确链接 | 确认ATLMFC组件已安装 |
+
+### 编译命令模板
+
+```batch
+:: 1. 激活 VS 环境
+call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
+
+:: 2. 编译 MFC EXE (/MD 必须!)
+cl /nologo /EHsc /MD /O2 /D "_AFXDLL" /D "_UNICODE" /D "UNICODE" ^
+    /I "include" ^
+    src\main.cpp src\inject.cpp ... ^
+    /Fe:"bin\app.exe" /link /SUBSYSTEM:WINDOWS ^
+    wininet.lib ws2_32.lib gdiplus.lib winmm.lib psapi.lib ^
+    comctl32.lib version.lib shlwapi.lib
+
+:: 3. 编译普通 DLL
+cl /nologo /LD /MT /O2 ^
+    src\hook_dll.cpp ^
+    /Fe:"bin\hook.dll" /link /DLL ^
+    ws2_32.lib user32.lib kernel32.lib
+```
+
+### 关键经验
+
+- **MFC + `/MD`**：定义了 `_AFXDLL` 时必须用 `/MD`（动态运行时），`/MT` 会报 `#error`
+- **纯ASCII路径**：`cl.exe` 对含中文的路径编码处理有问题，建议复制到 `D:\xxx` 纯英文目录
+- **/utf-8 选项**：处理中文注释的代码页警告
+- **PowerShell vs CMD**：`cmd /c "call vcvars.bat && cl ..."` 在 PowerShell 中可能中断脚本流，建议写 `.cmd` 批处理文件
+
+### 进阶：MFC 消息映射与类定义陷阱
+
+#### 陷阱 1: `ON_MESSAGE` 宏要求 `LRESULT` 返回类型
+
+```cpp
+// ❌ 错误：返回 void
+afx_msg void OnTrayNotify(WPARAM wParam, LPARAM lParam);
+
+// ✅ 正确：返回 LRESULT
+afx_msg LRESULT OnTrayNotify(WPARAM wParam, LPARAM lParam);
+
+// 实现也必须匹配
+LRESULT CMainDialog::OnTrayNotify(WPARAM wParam, LPARAM lParam) {
+    // ...
+    return 0;
+}
+```
+
+#### 陷阱 2: 成员变量初始化顺序
+
+```cpp
+// ❌ 错误：在构造函数体中初始化 MFC 控件成员
+CMainDialog::CMainDialog(CWnd* pParent)
+    : CDialogEx(IDD_MAIN_DIALOG, pParent) {
+    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);  // 此时 MFC 可能未初始化
+}
+
+// ✅ 正确：在 OnInitDialog 中初始化图标
+BOOL CMainDialog::OnInitDialog() {
+    CDialogEx::OnInitDialog();
+    m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    SetIcon(m_hIcon, TRUE);
+    return TRUE;
+}
+```
+
+#### 陷阱 3: 资源 ID 未定义
+
+```cpp
+// ❌ 错误：直接使用 IDR_MAINFRAME 但未定义
+m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);  // C2065
+
+// ✅ 正确：在 common.h 中定义
+#define IDR_MAINFRAME  128
+#define IDD_MAIN_DIALOG 101
+```
+
+#### 陷阱 4: `WinMain` 链接错误
+
+```cpp
+// 错误：LNK2019 _WinMain@16 unresolved
+// 原因：MFC 应用需要 wWinMainCRTStartup 入口点
+
+// 修复：链接时指定入口点
+// cl ... /link /SUBSYSTEM:WINDOWS /ENTRY:"wWinMainCRTStartup"
+```
+
+#### 陷阱 5: DLL 缺少 Winsock 头文件
+
+```cpp
+// hook_dll.cpp 中使用 SOCKET 类型但未包含 winsock2.h
+// 错误：C2065 'SOCKET': undeclared identifier
+
+// ✅ 修复：
+#include <winsock2.h>
+#pragma comment(lib, "ws2_32.lib")
+```
+
+#### 陷阱 6: CRITICAL_SECTION 位置错误
+
+```cpp
+// ❌ 错误：在 CWinApp::InitInstance 中操作 CMainDialog 的成员
+BOOL CQQRobotApp::InitInstance() {
+    InitializeCriticalSection(&m_csLock);  // m_csLock 是 CMainDialog 的成员！
+    // ...
+}
+
+// ✅ 正确：在类的构造函数/析构函数中管理资源
+CMainDialog::CMainDialog(CWnd* pParent) : CDialogEx(IDD_MAIN_DIALOG, pParent) {
+    InitializeCriticalSection(&m_csLock);
+}
+CMainDialog::~CMainDialog() {
+    DeleteCriticalSection(&m_csLock);
+}
+```
+
+### 完整构建脚本模板（已验证）
+
+```batch
+@echo off
+setlocal
+
+set "vcvars=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat"
+set "src=D:\cfbot_build\src"
+set "inc=D:\cfbot_build\include"
+set "out=D:\cfbot_build\bin"
+
+if not exist "%out%" mkdir "%out%"
+
+echo [1] Activating VS build env...
+call "%vcvars%"
+if errorlevel 1 exit /b 1
+
+echo [2] Compiling MFC EXE ...
+cl /nologo /EHsc /MD /O2 /utf-8 /D "_AFXDLL" /D "_UNICODE" /D "UNICODE" /I "%inc%" ^
+    "%src%\main.cpp" ^
+    "%src%\inject.cpp" ^
+    "%src%\protocol.cpp" ^
+    "%src%\crypto.cpp" ^
+    "%src%\network.cpp" ^
+    "%src%\business.cpp" ^
+    "%src%\ocr_bridge.cpp" ^
+    /Fe:"%out%\ChenfengQQBot.exe" ^
+    /link /SUBSYSTEM:WINDOWS /ENTRY:"wWinMainCRTStartup" ^
+    wininet.lib ws2_32.lib gdiplus.lib winmm.lib psapi.lib dbghelp.lib urlmon.lib ^
+    comctl32.lib version.lib shlwapi.lib iphlpapi.lib imm32.lib ole32.lib oleaut32.lib msimg32.lib ^
+    mfc140.lib mfcs140.lib
+
+echo [3] Compiling DLL ...
+cl /nologo /LD /MT /O2 /utf-8 /D "_UNICODE" /D "UNICODE" ^
+    "%src%\hook_dll.cpp" ^
+    /Fe:"%out%\QQBotHook.dll" ^
+    /link /DLL ^
+    ws2_32.lib user32.lib kernel32.lib
+
+echo [OK] Build complete!
 ```
 
 ---
@@ -950,8 +1405,432 @@ Offset  Size  Type    Field
 
 ---
 
+## 安装包静默提取专题 🆕
+
+### 策略优先级
+
+当 innoextract / 7zr / innounp 全部失败时，**直接运行安装包静默安装**：
+
+```bash
+# InnoSetup 静默安装
+installer.exe /VERYSILENT /DIR="C:\extracted" /SUPPRESSMSGBOXES /NORESTART
+
+# NSIS 静默安装
+installer.exe /S /D=C:\extracted
+
+# MSI 静默安装
+msiexec /i installer.msi /qn TARGETDIR=C:\extracted
+```
+
+**关键**：安装完成后立即提取文件，然后卸载或保留。
+
+---
+
+## PyInstaller 打包程序提取专题 🆕
+
+### 识别特征
+
+```
+自定义段名 (.mapo, .mapo2e 等 PyInstaller 特征)
+.text RawSize=0 (内存展开)
+大量 .pyd / .pyc 文件在 _internal/ 目录
+Python3x.dll 依赖
+```
+
+### 提取流程
+
+```bash
+# 静默安装后，PyInstaller 程序会解压到 _internal/
+# Python 源码 (.py) 直接可读
+# 编译的扩展 (.pyd) 需 pe_analyze 分析导出表
+```
+
+### 关键产出
+
+- `_internal/modules/` — 业务逻辑模块 (Python .py 源码)
+- `_internal/*.pyd` — C 扩展 (用 pe_analyze 分析导出)
+- `_internal/PySide6/` → Qt for Python 框架
+- `_internal/playwright/` → 浏览器自动化
+
+---
+
+## 紧凑可编译重构策略 🆕
+
+### 核心原则
+
+**宁可 300 行编译通过的真代码，不要 3000 行编译失败的骨架。**
+
+| 策略 | 错误做法 | 正确做法 |
+|------|---------|---------|
+| 模块数量 | 8+ 个骨架 .c 文件 | 5 个以内，每个有真实函数实现 |
+| 头文件 | 每个模块一个 .h | 一个 common.h 包含所有定义 |
+| 函数实现 | 空的 TODO 骨架 | 从伪代码提取的 Win32 等效实现 |
+| 网络层 | "TODO: HTTP request" | WinHttpOpen+SendRequest+ReceiveResponse 完整调用链 |
+| 加密 | "TEA implemented here" | 32 轮 TEA + CryptoAPI MD5 完整实现 |
+| 构建 | 未测试的 CMakeLists | cmake --build 验证通过 |
+
+### 合并策略
+
+当伪代码中包含以下特征时，合并相关模块：
+- WinHTTP/WinInet 调用 → 合并入 network.c
+- TEA/XXTEA/MD5 常量 → 合并入 crypto.c
+- QQ API URL 端点 → 合并入 business.c 作为常量
+
+**不要**为每个小功能创建独立文件。少于 50 行的模块应合并。
+
+---
+
+## Web API 安全审计与逆向 🆕 (2026-06-07 实战验证)
+
+### 核心原则
+
+**Web API 安全审计也是逆向——逆向的是"暴露面"而非二进制。**
+从外部可见的 HTTP 响应头、API 端点行为、错误消息中还原系统架构、
+发现配置缺陷，与从二进制中还原源码遵循同一思维模式。
+
+### 适用场景
+
+```bash
+# 当用户说以下任一情况时，启动本流程：
+"帮我测一下 https://xxx 的安全性"
+"这是我的网站，帮我找漏洞"
+"帮我做渗透测试 https://api.xxx"
+"https://xxx 帮我做安全评估"
+```
+
+### 重要：授权检查
+
+**必须**先确认用户对目标的所有权。触发方式：
+- 用户明确说"这是我的网站/API/应用"
+- 用户提供了 ICP 备案截图证明所有权  
+- 用户可以口头确认"这是我自己的"
+
+**如果用户无法证明所有权且目标不是 CTF 题目，拒绝执行。**
+
+### 四阶段审计流程
+
+```
+阶段1: 信息收集 ────→ 阶段2: 端点枚举 ────→ 阶段3: 攻击测试 ────→ 阶段4: 报告产出
+  HTTP 响应头          路径扫描               CORS/注入/认证            分级报告
+  技术栈识别           .git/.env探测          危险方法测试              修复代码
+  Server/框架指纹      API 端点发现           Rate Limit验证            优先级排序
+```
+
+---
+
+### 阶段 1：信息收集（HTTP 响应头分析）
+
+```powershell
+# 核心命令：抓取完整 HTTP 响应头
+curl -sI https://api.target.cn/
+curl -sI https://api.target.cn/api/status
+
+# PowerShell 等效
+(Invoke-WebRequest -Uri "https://api.target.cn" -Method GET -UseBasicParsing).Headers
+```
+
+#### 必检清单（6 项安全响应头）
+
+| 响应头 | 作用 | 常见缺失后果 |
+|--------|------|------------|
+| `Strict-Transport-Security` | 强制 HTTPS | SSL stripping 攻击 |
+| `Content-Security-Policy` | 防 XSS/注入 | 任意脚本执行 |
+| `X-Frame-Options` | 防 Clickjacking | 页面被 iframe 嵌入 |
+| `X-Content-Type-Options` | 防 MIME 嗅探 | 文件类型欺骗 |
+| `Referrer-Policy` | 控制 Referer 泄露 | URL 中令牌泄露 |
+| `Permissions-Policy` | 限制浏览器特性 | 摄像头/麦克风滥用 |
+
+#### 信息泄露检测
+
+| 泄露项 | 检查方式 | 风险 |
+|--------|---------|------|
+| `Server: nginx/1.24.0 (Ubuntu)` | 响应头 | 精准版本攻击 |
+| `X-Powered-By: Express` | 响应头 | 框架暴露 |
+| `X-New-Api-Version: latest` | 响应头 | 应用指纹 |
+| `Cache-Version: <SHA256>` | 响应头 | 部署变更跟踪 |
+| `X-Oneapi-Request-Id` | 响应头 | 时序分析 |
+| Cache SHA256 指纹 | 响应头 | 部署变更关联 |
+
+---
+
+### 阶段 2：端点枚举（敏感路径扫描）
+
+```powershell
+# 批量扫描关键路径
+$paths = @(
+    # 版本控制泄露
+    "/.git/HEAD", "/.git/config", "/.svn/entries",
+    # 配置文件泄露
+    "/.env", "/.env.backup", "/.env.production", "/.env.local",
+    # 管理后台
+    "/admin", "/admin/", "/console", "/login",
+    # 开发工具
+    "/swagger", "/swagger/index.html", "/swagger-ui.html",
+    "/docs", "/api-docs", "/openapi.json", "/graphql", "/graphiql",
+    # 调试端点
+    "/debug/pprof/", "/actuator", "/actuator/health",
+    "/actuator/env", "/actuator/mappings",
+    # 监控端点
+    "/health", "/status", "/metrics", "/info",
+    # 常见漏洞路径
+    "/wp-admin", "/phpinfo.php", "/info.php", "/test", "/backup",
+    # API 端点
+    "/api", "/api/", "/api/v1/", "/v1/", "/v2/",
+    "/api/keys", "/api/users", "/api/admin", "/api/auth/login"
+)
+
+foreach ($p in $paths) {
+    try {
+        $r = Invoke-WebRequest -Uri "https://target$p" -Method GET -UseBasicParsing -TimeoutSec 10
+        $preview = if ($r.Content.Length -le 150) { $r.Content } else { $r.Content.Substring(0, 150) + "..." }
+        Write-Output "[$($r.StatusCode)] $p → $preview"
+    } catch {
+        Write-Output "[$($_.Exception.Response.StatusCode.value__)] $p → (error)"
+    }
+}
+```
+
+#### SPA catch-all 陷阱
+
+React/Vue SPA 的前端路由会让 `/admin` `/.git` `/console` 等全部返回 `200 OK` + 前端 HTML 壳。
+**这不是漏洞本身**，但有两个风险：
+
+1. **掩盖真实问题**：如果其中某个路径确实有后端实现，难以从状态码发现
+2. **SEO/爬虫污染**：死路径被搜索引擎索引
+
+检测方法：所有路径返回的 `Content-Length` 是否完全一致（SPA 壳的典型特征）。
+
+---
+
+### 阶段 3：攻击面测试
+
+#### 3.1 CORS 配置检测
+
+```powershell
+# 从恶意 Origin 发送预检请求
+$headers = @{
+    "Origin" = "https://evil.com"
+    "Access-Control-Request-Method" = "POST"
+    "Access-Control-Request-Headers" = "Authorization,Content-Type"
+}
+$r = Invoke-WebRequest -Uri "https://target/api/endpoint" `
+    -Method OPTIONS -Headers $headers -UseBasicParsing
+
+# 检查关键 CORS 头
+$r.Headers["Access-Control-Allow-Origin"]      # 应为白名单域名，非 *
+$r.Headers["Access-Control-Allow-Credentials"]  # 如有 Origin:*  则无意义
+$r.Headers["Access-Control-Allow-Headers"]      # 非 *
+$r.Headers["Access-Control-Allow-Methods"]      # 不应含 PUT/DELETE
+```
+
+| 危险组合 | 风险 |
+|---------|------|
+| `Allow-Origin: *` + `Allow-Credentials: true` | 浏览器拒绝（不符合规范），但非浏览器客户端可利用 |
+| `Allow-Headers: *` | 任意请求头可通过，含 Authorization |
+| `Allow-Methods` 含 `PUT/DELETE` | 允许写操作 |
+| 无 `Allow-Origin` 但有 `Allow-Credentials: true` | 后端可能反射 Origin（需进一步测试） |
+
+#### 3.2 未认证数据暴露测试
+
+```powershell
+# 测试无需认证的端点是否泄露敏感信息
+# New-API/OneAPI 常见暴露点：
+@("/api/status", "/api/setup", "/api/price", "/api/oauth/github",
+  "/api/oauth/wechat", "/api/user/register") | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri "https://target$_" -Method GET -UseBasicParsing
+        $len = $r.Content.Length
+        if ($len -gt 1000) {
+            Write-Output "⚠️  $_ 返回 $len 字节 — 可能泄露配置数据"
+        }
+    } catch {}
+}
+```
+
+#### 3.3 认证绕过测试
+
+```powershell
+# 测试 POST/PUT/DELETE 对未认证端点的响应
+# 检查：
+# - 是否返回 401（正确）vs 200（错误）
+# - 错误信息是否泄露内部路径
+# - 是否缺少 CSRF 保护
+
+# 测试注册端点
+$body = '{"username":"test","password":"test123"}'
+$r = Invoke-WebRequest -Uri "https://target/api/user/register" `
+    -Method POST -Body $body -ContentType "application/json" -UseBasicParsing
+# 检查是否有验证码保护（Turnstile/hCaptcha）
+```
+
+#### 3.4 危险 HTTP 方法
+
+```powershell
+@("TRACE", "TRACK", "DEBUG", "CONNECT") | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri "https://target/" -Method $_ -UseBasicParsing
+        Write-Output "⚠️  $_ 方法允许: $($r.StatusCode)"
+    } catch {
+        Write-Output "✅  $_ 方法已禁用: $($_.Exception.Response.StatusCode.value__)"
+    }
+}
+```
+
+#### 3.5 路径穿越检测
+
+```powershell
+@("/%2e%2e/.env", "/../.env", "/..%2f..%2fetc/passwd") | ForEach-Object {
+    try {
+        $r = Invoke-WebRequest -Uri "https://target$_" -Method GET -UseBasicParsing
+        Write-Output "⚠️  $_ 返回 $($r.StatusCode)"
+    } catch {
+        Write-Output "✅  $_ 已拦截: $($_.Exception.Response.StatusCode.value__)"
+    }
+}
+```
+
+#### 3.6 Rate Limiting 验证
+
+快速连续发送 10+ 个请求到同一端点，观察是否返回 `429 Too Many Requests`。
+**429 是好信号**——说明有速率限制。
+
+---
+
+### 阶段 4：报告产出规范
+
+#### 安全评估报告结构
+
+```markdown
+# [服务名] 外部安全评估报告
+
+## 一、发现总览（表格）
+| ID | 严重性 | 问题 | 修复量 |
+
+## 二、严重问题详情
+每个问题包含：
+- 攻击场景
+- 实际泄露数据（部分脱敏）
+- 修复代码（Nginx/Go/Python/Java）
+
+## 三、修复优先级
+- 立即：Ansible/手动 5 分钟修复项
+- 本周：需要代码修改的
+- 本月：架构级改进
+
+## 四、已具备的安全防护
+## 五、服务器端自查清单（需登录执行）
+```
+
+#### 严重性定义
+
+| 级别 | 定义 | 示例 |
+|------|------|------|
+| 🔴 严重 | 可导致数据泄露、账户接管 | `/api/status` 未认证泄漏 OAuth 密钥 |
+| 🔴 高危 | 可被利用但需条件 | CORS 全部 \* + credentials |
+| 🟡 中危 | 增加攻击面但不可直接利用 | 版本信息暴露、SPA catch-all |
+| 🟢 低危 | 不影响功能但不符合最佳实践 | 已禁用功能仍可访问 |
+| ✅ 良好 | 正确实施的防护措施 | Rate Limit、TRACE 禁用 |
+
+---
+
+### 防护方案速查表
+
+#### Nginx 通用加固
+
+```nginx
+server {
+    # 隐藏服务器指纹
+    server_tokens off;
+    proxy_hide_header X-Powered-By;
+    proxy_hide_header Server;
+
+    # 6 项核心安全头
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # 精确 CORS
+    set $cors_origin "";
+    if ($http_origin ~* "^https://(api\.yourdomain\.cn)$") {
+        set $cors_origin $http_origin;
+    }
+    add_header Access-Control-Allow-Origin $cors_origin;
+
+    # 屏蔽敏感路径
+    location ~ ^/(\.git|\.env|admin|console|swagger|graphql|debug|wp-admin|backup|actuator|phpinfo) {
+        return 404;
+    }
+
+    # API Rate Limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://backend;
+    }
+}
+```
+
+#### Go/Gin 常见修复
+
+```go
+// 区分认证/未认证的 API 响应
+func GetStatus(c *gin.Context) {
+    userId := c.GetInt("id")
+    data := buildStatusData()
+    if userId == 0 {
+        // 仅返回公开信息，脱敏敏感字段
+        data.GithubClientId = ""
+        data.TurnstileSiteKey = ""
+    }
+    c.JSON(200, gin.H{"data": data, "success": true})
+}
+
+// 移除框架指纹头
+func RemoveFingerprintHeaders() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Header("X-New-Api-Version", "")
+        c.Header("X-Oneapi-Request-Id", "")
+        c.Next()
+    }
+}
+```
+
+---
+
+### 实战经验教训
+
+#### 教训 1：`/api/status` 是最常见的信息泄露点
+
+New-API/OneAPI 类 AI 网关的 `/api/status` 端点默认未认证返回完整系统配置。
+**每次审计此类系统必须检查此端点。**
+
+#### 教训 2：CORS `*` ≠ 安全
+
+即使浏览器会因 `* + credentials: true` 而拒绝请求，非浏览器环境（curl/脚本/SDK）
+完全不检查 CORS。`Allow-Headers: *` 让它们可携带任意认证头。
+
+#### 教训 3：安全响应头缺失 = 极低成本修复点
+
+6 个安全头的 Nginx 配置总计不到 10 行，但能防御 XSS/Clickjacking/SSL stripping 等。
+**每个审计报告都必须优先指出此项。**
+
+#### 教训 4：Rate Limit 存在 = 好信号
+
+429 响应的存在意味着后端已有基本防护。应作为正面发现列入报告。
+
+#### 教训 5：SPA 全 200 增加了审计难度
+
+前端路由的 catch-all 行为让路径扫描结果"全是 200"，需对比 Content-Length 来区分。
+应在报告中建议 Nginx 层做路由白名单。
+
+---
+
 ## 法律与道德
 
-- **仅对授权目标进行逆向工程**（CTF、自己的程序、书面授权的渗透测试）
+- **仅对授权目标进行逆向工程与安全测试**（CTF、自己的程序、书面授权的渗透测试）
+- 对他人网站/API 进行未授权的安全测试属于**违法行为**
 - 逆向 DRM 保护的软件可能违反当地法律
 - 不要将逆向得到的代码用于盗版分发
+- 安全评估报告中的凭证/密钥必须脱敏
